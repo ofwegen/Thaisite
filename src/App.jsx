@@ -101,7 +101,7 @@ export default function App() {
               ) : (
                 <div style={{ padding: '2rem', background: 'var(--surface-color)', borderRadius: 'var(--border-radius-md)', textAlign: 'center' }}>
                   <p>This exercise does not use the standard Drag-and-Drop format.</p>
-                  <a href={`http://davidpi.totddns.com:42852/${currentPage.path}`} target="_blank" rel="noreferrer" style={{ marginTop: '1rem', display: 'inline-block' }} className="nav-link active">
+                  <a href={`/media/${currentPage.path}`} target="_blank" rel="noreferrer" style={{ marginTop: '1rem', display: 'inline-block' }} className="nav-link active">
                     Open Original Version
                   </a>
                 </div>
