@@ -67,9 +67,32 @@ Notes:
 - `src/components/`: UI components (e.g., `DndExercise`, `Sidebar`).
 - `src/hooks/useProgress.js`: localStorage + URL hash progress logic.
 - `src/index.css`: global styles and design system tokens.
-- `src/assets/content.json`: scraped content data.
+- `src/assets/content.json`: scraped content data (media URLs use `/media/` proxy paths).
 - `exercises.json`: per-exercise description overrides.
 - `scrape.mjs`: content extraction utility (not used at runtime).
+- `Dockerfile`: multi-stage production build (Node → Nginx Alpine).
+- `docker-compose.yml`: Traefik-integrated container config with TLS.
+- `nginx.conf`: SPA routing, `/media/` reverse proxy, gzip, caching.
+- `.dockerignore`: excludes node_modules, dist, .git from Docker context.
+
+## Deployment
+
+The app is deployed on a Hostinger VPS behind Traefik.
+
+**Live URL:** https://thai.srv1114667.hstgr.cloud
+**VPS Path:** `/docker/thailearning/`
+
+Build and deploy:
+
+```bash
+ssh root@72.60.33.10
+cd /docker/thailearning
+git pull
+docker compose up -d --build
+```
+
+The Nginx inside the container proxies `/media/*` requests to
+`http://davidpi.totddns.com:42852/` to avoid mixed content on the HTTPS site.
 
 ## Code Style
 

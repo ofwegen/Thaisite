@@ -40,6 +40,18 @@
    - Description shown as the instruction hint above each drag-and-drop exercise
    - 206 exercises registered in the configuration file
 
+7. **Docker Deployment & Hosting**
+   - Multi-stage Dockerfile: Node 20 Alpine (build) → Nginx Alpine (serve), ~30MB image
+   - Docker Compose with Traefik reverse proxy integration (shared-network, TLS labels)
+   - Nginx config with SPA routing (`try_files` fallback), gzip compression, and static asset caching
+   - **Media proxy** (`/media/` → `http://davidpi.totddns.com:42852/`) solves mixed content (HTTPS site loading HTTP resources)
+   - `.dockerignore` excludes `node_modules`, `dist`, `.git` from build context
+   - Live at **https://thai.srv1114667.hstgr.cloud**
+
+8. **Git & CI**
+   - Repository: [github.com/ewdob/ThaiLearningPlatform](https://github.com/ewdob/ThaiLearningPlatform) (private)
+   - Deploy workflow: `git pull` → `docker compose up -d --build` on VPS
+
 ---
 
 ## Architecture Overview
@@ -50,14 +62,37 @@
 | `src/components/DndExercise.jsx` | Drag-and-drop exercise with validation |
 | `src/components/Sidebar.jsx` | Navigation, progress display, export/import panel |
 | `src/hooks/useProgress.js` | Progress hook (localStorage, Base64, URL hash) |
-| `src/assets/content.json` | Scraped exercise data (units, pages, media URLs) |
+| `src/assets/content.json` | Scraped exercise data (units, pages, media URLs via `/media/` proxy) |
 | `exercises.json` | Configurable exercise descriptions |
 | `src/index.css` | Complete design system (~900 lines) |
 | `scrape.mjs` | Content extraction script |
+| `Dockerfile` | Multi-stage production build |
+| `docker-compose.yml` | Traefik-integrated container config |
+| `nginx.conf` | SPA routing + media reverse proxy |
+
+---
+
+## Deployment Architecture
+
+```
+Browser (HTTPS)
+  ↓
+Traefik (port 443, TLS via Let's Encrypt)
+  ↓
+thailearning container (Nginx, port 80)
+  ├── /           → static React app from /dist
+  └── /media/*    → proxy to http://davidpi.totddns.com:42852/*
+```
+
+**VPS:** Hostinger KVM, Ubuntu 24.04 (`72.60.33.10`)
+**Path on VPS:** `/docker/thailearning/`
+**Network:** `shared-network` (shared with Traefik, n8n, Gitea)
 
 ---
 
 ## How to Run
+
+### Local Development
 
 ```bash
 npm install
@@ -65,3 +100,12 @@ npm run dev
 ```
 
 Open http://localhost:5173/ in your browser.
+
+### Production (VPS)
+
+```bash
+ssh root@72.60.33.10
+cd /docker/thailearning
+git pull
+docker compose up -d --build
+```
