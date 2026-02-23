@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { clsx } from 'clsx';
-import { Volume2, RotateCcw, Loader2 } from 'lucide-react';
+import { Volume2, RotateCcw, Loader2, GripVertical } from 'lucide-react';
 
 /* ─────── Mobile Detection Hook ─────── */
 function useIsMobile(breakpoint = 640) {
@@ -55,9 +55,9 @@ function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = 
         <div
             ref={setNodeRef}
             style={style}
-            {...(disabled ? {} : listeners)}
-            {...(disabled ? {} : attributes)}
-            onClick={playAudio}
+            {...(!isMobile && !disabled ? listeners : {})}
+            {...(!isMobile && !disabled ? attributes : {})}
+            onClick={!isMobile || isDraggingOverlay ? playAudio : undefined}
             className={clsx(
                 "draggable-item",
                 isMobile && "mobile-draggable-item",
@@ -67,12 +67,26 @@ function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = 
                 status === 'idle' && (isMobile ? (isAdjusted ? "item-adjusted" : "item-unadjusted") : "item-playable")
             )}
         >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', pointerEvents: 'none' }}>
+            <div
+                className="sound-chip-content"
+                onClick={isMobile && !isDraggingOverlay ? playAudio : undefined}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', flex: 1 }}
+            >
                 <Volume2 size={16} />
                 <span style={{ fontWeight: 600 }}>{sound.label || "Sound"}</span>
                 {status === 'correct' && <span>✓</span>}
                 {status === 'incorrect' && <span>✕</span>}
             </div>
+            {isMobile && !disabled && (
+                <div
+                    className="drag-handle"
+                    {...listeners}
+                    {...attributes}
+                    style={{ padding: '0 8px', display: 'flex', alignItems: 'center', color: 'inherit', opacity: 0.6, touchAction: 'none' }}
+                >
+                    <GripVertical size={18} />
+                </div>
+            )}
         </div>
     );
 }
@@ -244,10 +258,10 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
 
     // Sensors Configuration
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(TouchSensor, {
-            // Press and hold for 150ms to activate drag, allowing scrolling to work normally
-            activationConstraint: { delay: 150, tolerance: 10 }
+            // No delay needed on mobile because we have a dedicated drag handle
+            activationConstraint: { tolerance: 5, delay: 0 }
         }),
         useSensor(KeyboardSensor)
     );
@@ -384,7 +398,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
             <div className={clsx("dnd-container", isMobile && "dnd-mobile")}>
                 <p className="dnd-hint">
                     {isMobile
-                        ? '👆 Tap a sound to play it. Press and hold to drag and drop to swap.'
+                        ? '👆 Tap a sound to play it. Drag the handle (⣿) to swap.'
                         : '🎧 Click a sound to play it. Drag it onto the matching image.'}
                 </p>
 
