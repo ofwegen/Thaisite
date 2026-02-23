@@ -311,9 +311,6 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
 
             // Mark dragged sound as adjusted
             setAdjustedSoundIds(prev => new Set(prev).add(soundId));
-            if (displacedSoundId) {
-                setAdjustedSoundIds(prev => new Set(prev).add(displacedSoundId));
-            }
 
             setTargets(prev => {
                 const next = [...prev];

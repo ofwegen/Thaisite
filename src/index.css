@@ -452,6 +452,8 @@ body {
   cursor: grabbing;
   z-index: 1000;
   border-color: transparent;
+  min-width: 180px;
+  white-space: nowrap;
 }
 
 /* ═══════════════════════════════════════ */
