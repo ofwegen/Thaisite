@@ -30,28 +30,20 @@ function useIsMobile(breakpoint = 640) {
 }
 
 /* ─────── Draggable Sound Chip ─────── */
-function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = false, isMobile, isSelected, onTap }) {
+function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = false, isMobile, isAdjusted }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: sound.id,
         data: sound,
-        disabled: disabled || isMobile,
+        disabled: disabled,
     });
 
-    const style = (!isMobile && transform) ? {
+    const style = transform ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     } : undefined;
 
     const playAudio = () => {
         if (sound.audio) {
             new Audio(sound.audio).play().catch(console.error);
-        }
-    };
-
-    const handleClick = () => {
-        if (isMobile && onTap) {
-            onTap(sound.id);
-        } else {
-            playAudio();
         }
     };
 
@@ -63,20 +55,20 @@ function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = 
         <div
             ref={setNodeRef}
             style={style}
-            {...(disabled || isMobile ? {} : listeners)}
-            {...(disabled || isMobile ? {} : attributes)}
-            onClick={handleClick}
+            {...(disabled ? {} : listeners)}
+            {...(disabled ? {} : attributes)}
+            onClick={playAudio}
             className={clsx(
                 "draggable-item",
+                isMobile && "mobile-draggable-item",
                 isDraggingOverlay && "dragging-overlay",
                 status === 'correct' && "item-correct",
                 status === 'incorrect' && "item-incorrect",
-                status === 'idle' && "item-playable",
-                isSelected && "item-selected"
+                status === 'idle' && (isMobile ? (isAdjusted ? "item-adjusted" : "item-unadjusted") : "item-playable")
             )}
         >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', pointerEvents: 'none' }}>
-                {sound.audio && <Volume2 size={16} />}
+                <Volume2 size={16} />
                 <span style={{ fontWeight: 600 }}>{sound.label || "Sound"}</span>
                 {status === 'correct' && <span>✓</span>}
                 {status === 'incorrect' && <span>✕</span>}
@@ -96,7 +88,7 @@ function DroppableTray({ children, isDragging }) {
     );
 }
 
-/* ─────── Droppable Target (desktop) ─────── */
+/* ─────── Droppable Target (Desktop) ─────── */
 function DroppableTarget({ targetItem, matchedSoundItem }) {
     const { isOver, setNodeRef } = useDroppable({ id: targetItem.id });
     const [imgLoaded, setImgLoaded] = useState(false);
@@ -140,31 +132,16 @@ function DroppableTarget({ targetItem, matchedSoundItem }) {
     );
 }
 
-/* ─────── Mobile Match Row ─────── */
-function MobileMatchRow({ target, soundObj, isSelected, onTapRow, status, isAdjusted }) {
+/* ─────── Mobile Match Row (Droppable) ─────── */
+function MobileMatchRow({ targetItem, matchedSoundItem, isAdjusted }) {
+    const { isOver, setNodeRef } = useDroppable({ id: targetItem.id });
     const [imgLoaded, setImgLoaded] = useState(false);
 
-    const handleTap = () => {
-        // Play audio when tapping
-        if (soundObj?.audio) {
-            new Audio(soundObj.audio).play().catch(console.error);
-        }
-        onTapRow(target.id);
-    };
-
     return (
-        <div
-            className={clsx(
-                "mobile-match-row",
-                isSelected && "match-row-selected",
-                status === 'correct' && "match-row-correct",
-                status === 'incorrect' && "match-row-incorrect"
-            )}
-            onClick={handleTap}
-        >
+        <div className={clsx("mobile-match-row", isOver && "match-row-is-over")}>
             {/* Left: Image */}
             <div className="match-image" style={{ overflow: 'hidden', position: 'relative' }}>
-                {target.image ? (
+                {targetItem.image ? (
                     <>
                         {!imgLoaded && (
                             <div className="img-skeleton">
@@ -172,34 +149,31 @@ function MobileMatchRow({ target, soundObj, isSelected, onTapRow, status, isAdju
                             </div>
                         )}
                         <img
-                            src={target.image}
-                            alt={target.content}
+                            src={targetItem.image}
+                            alt={targetItem.content}
                             style={{ maxHeight: '100%', maxWidth: '100%', opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.3s' }}
                             onLoad={() => setImgLoaded(true)}
                         />
                     </>
                 ) : (
-                    <span className="match-image-text">{target.content}</span>
+                    <span className="match-image-text">{targetItem.content}</span>
                 )}
             </div>
 
-            {/* Right: Sound */}
-            <div className={clsx(
-                "match-sound",
-                isSelected && "match-sound-selected",
-                status === 'correct' && "item-correct",
-                status === 'incorrect' && "item-incorrect",
-                status === 'idle' && (isAdjusted ? "item-adjusted" : "item-unadjusted")
-            )}>
-                {soundObj ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', pointerEvents: 'none' }}>
-                        <Volume2 size={14} />
-                        <span style={{ fontWeight: 600, fontSize: '0.82rem' }}>{soundObj.label || "Sound"}</span>
-                        {status === 'correct' && <span>✓</span>}
-                        {status === 'incorrect' && <span>✕</span>}
-                    </div>
+            {/* Right: Sound Slot */}
+            <div ref={setNodeRef} className={clsx("mobile-target-slot", isOver && "slot-is-over")}>
+                {matchedSoundItem ? (
+                    <DraggableSound
+                        sound={matchedSoundItem}
+                        status={targetItem.status}
+                        disabled={targetItem.status !== 'idle'}
+                        isMobile={true}
+                        isAdjusted={isAdjusted}
+                    />
                 ) : (
-                    <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>—</span>
+                    <span className="drop-placeholder">
+                        <span className="drop-placeholder-icon">↓</span>
+                    </span>
                 )}
             </div>
         </div>
@@ -210,12 +184,9 @@ function MobileMatchRow({ target, soundObj, isSelected, onTapRow, status, isAdju
 export function DndExercise({ exerciseData, onReady, onComplete, description }) {
     const [targets, setTargets] = useState([]);
     const [availableSounds, setAvailableSounds] = useState([]);
+    const [adjustedSoundIds, setAdjustedSoundIds] = useState(new Set());
     const [activeSoundId, setActiveSoundId] = useState(null);
     const [validationStatus, setValidationStatus] = useState('idle');
-
-    // Mobile state
-    const [selectedRowId, setSelectedRowId] = useState(null);
-    const [mobileSlots, setMobileSlots] = useState([]); // array of { targetId, soundId }
 
     const isMobile = useIsMobile();
 
@@ -233,7 +204,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
 
     useEffect(() => {
         setValidationStatus('idle');
-        setSelectedRowId(null);
+        setAdjustedSoundIds(new Set());
 
         const initialTargets = exerciseData.map(item => ({
             id: `target-${item.id}`,
@@ -249,36 +220,39 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
             .sort(() => Math.random() - 0.5)
             .map(item => `sound-${item.id}`);
 
-        // For mobile: pre-assign sounds randomly to targets
-        const slots = initialTargets.map((t, i) => ({
-            targetId: t.id,
-            soundId: shuffledSoundIds[i],
-            isAdjusted: false
-        }));
-        setMobileSlots(slots);
+        if (isMobile) {
+            // Mobile: sounds start randomly pre-placed in targets
+            setTargets(initialTargets.map((t, i) => ({ ...t, matchedSoundId: shuffledSoundIds[i] })));
+            setAvailableSounds([]);
+        } else {
+            // Desktop: sounds start in the tray
+            const initialSounds = [...exerciseData]
+                .sort(() => Math.random() - 0.5)
+                .map(item => ({
+                    id: `sound-${item.id}`,
+                    matchId: item.matchId,
+                    label: item.soundText,
+                    audio: item.soundAudio,
+                    image: item.soundImage
+                }));
+            setTargets(initialTargets);
+            setAvailableSounds(initialSounds);
+        }
 
-        const initialSounds = [...exerciseData]
-            .sort(() => Math.random() - 0.5)
-            .map(item => ({
-                id: `sound-${item.id}`,
-                matchId: item.matchId,
-                label: item.soundText,
-                audio: item.soundAudio,
-                image: item.soundImage
-            }));
-
-        setTargets(initialTargets);
-        setAvailableSounds(initialSounds);
         if (onReady) onReady();
-    }, [exerciseData]);
+    }, [exerciseData, isMobile]);
 
+    // Sensors Configuration
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-        useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+        useSensor(TouchSensor, {
+            // Press and hold for 150ms to activate drag, allowing scrolling to work normally
+            activationConstraint: { delay: 150, tolerance: 10 }
+        }),
         useSensor(KeyboardSensor)
     );
 
-    /* ─── Desktop DnD handlers ─── */
+    /* ─── Shared Drag & Drop Handlers ─── */
     const handleDragStart = (event) => {
         if (validationStatus !== 'idle') return;
         setActiveSoundId(event.active.id);
@@ -299,7 +273,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
         const goingToTarget = over && over.id !== 'tray';
 
         if (goingToTray) {
-            if (fromTarget) {
+            if (fromTarget && !isMobile) {
                 setTargets(prev => prev.map(t =>
                     t.matchedSoundId === soundId ? { ...t, matchedSoundId: null } : t
                 ));
@@ -314,100 +288,62 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
             const destTargetIdx = targets.findIndex(t => t.id === over.id);
             if (destTargetIdx === -1) return;
             const destTarget = targets[destTargetIdx];
+
+            // Same target
             if (destTarget.matchedSoundId === soundId) return;
+
             const displacedSoundId = destTarget.matchedSoundId || null;
+
+            // Mark dragged sound as adjusted
+            setAdjustedSoundIds(prev => new Set(prev).add(soundId));
+            if (displacedSoundId) {
+                setAdjustedSoundIds(prev => new Set(prev).add(displacedSoundId));
+            }
 
             setTargets(prev => {
                 const next = [...prev];
                 if (fromTarget) {
-                    next[sourceTargetIdx] = { ...next[sourceTargetIdx], matchedSoundId: null };
-                    if (displacedSoundId) {
-                        next[sourceTargetIdx] = { ...next[sourceTargetIdx], matchedSoundId: displacedSoundId };
-                    }
+                    // SWAP if from another target
+                    next[sourceTargetIdx] = { ...next[sourceTargetIdx], matchedSoundId: displacedSoundId };
                 }
                 next[destTargetIdx] = { ...next[destTargetIdx], matchedSoundId: soundId };
                 return next;
             });
 
-            setAvailableSounds(prev => {
-                let next = prev.filter(s => s.id !== soundId);
-                if (displacedSoundId && !fromTarget) {
+            // Put displaced sound in tray if not from a target (e.g. desktop tray to full target)
+            if (displacedSoundId && !fromTarget && !isMobile) {
+                setAvailableSounds(prev => {
+                    let next = prev.filter(s => s.id !== soundId);
                     const displaced = buildSoundObj(displacedSoundId);
                     if (displaced) next = [...next, displaced];
-                }
-                return next;
-            });
-        }
-    };
-
-    /* ─── Mobile Tap-to-Swap Handlers ─── */
-    const handleTapRow = (targetId) => {
-        if (validationStatus !== 'idle') return;
-
-        if (!selectedRowId) {
-            // First tap: select this row
-            setSelectedRowId(targetId);
-        } else if (selectedRowId === targetId) {
-            // Tap same row: deselect
-            setSelectedRowId(null);
-        } else {
-            // Second tap on different row: swap sounds
-            setMobileSlots(prev => {
-                const next = [...prev];
-                const idx1 = next.findIndex(s => s.targetId === selectedRowId);
-                const idx2 = next.findIndex(s => s.targetId === targetId);
-                if (idx1 !== -1 && idx2 !== -1) {
-                    const temp = next[idx1].soundId;
-                    next[idx1] = { ...next[idx1], soundId: next[idx2].soundId, isAdjusted: true };
-                    next[idx2] = { ...next[idx2], soundId: temp, isAdjusted: true };
-                }
-                return next;
-            });
-            setSelectedRowId(null);
+                    return next;
+                });
+            } else if (!isMobile) {
+                // Just remove from tray
+                setAvailableSounds(prev => prev.filter(s => s.id !== soundId));
+            }
         }
     };
 
     const getOriginalSound = useCallback((soundId) => {
-        const def = exerciseData.find(d => `sound-${d.id}` === soundId);
-        if (!def) return null;
-        return {
-            id: soundId,
-            matchId: def.matchId,
-            label: def.soundText,
-            audio: def.soundAudio,
-            image: def.soundImage
-        };
-    }, [exerciseData]);
+        if (!soundId) return null;
+        return buildSoundObj(soundId);
+    }, [buildSoundObj]);
 
     const activeSound = activeSoundId ? getOriginalSound(activeSoundId) : null;
 
     /* ─── Check Answers ─── */
     const handleCheckAnswers = () => {
-        if (isMobile) {
-            // Check mobile slots
-            const results = mobileSlots.map(slot => {
-                const target = targets.find(t => t.id === slot.targetId);
-                const sound = exerciseData.find(d => `sound-${d.id}` === slot.soundId);
-                const isCorrect = target && sound && target.matchId === sound.matchId;
-                return { ...slot, status: isCorrect ? 'correct' : 'incorrect' };
-            });
-            setMobileSlots(results);
-            const allCorrect = results.every(r => r.status === 'correct');
-            setValidationStatus(allCorrect ? 'success' : 'checked');
-            setSelectedRowId(null);
-            if (allCorrect && onComplete) onComplete();
-        } else {
-            const updatedTargets = targets.map(target => {
-                if (!target.matchedSoundId) return { ...target, status: 'incorrect' };
-                const originalSound = exerciseData.find(d => `sound-${d.id}` === target.matchedSoundId);
-                const isCorrect = originalSound && originalSound.matchId === target.matchId;
-                return { ...target, status: isCorrect ? 'correct' : 'incorrect' };
-            });
-            setTargets(updatedTargets);
-            const allCorrect = updatedTargets.every(t => t.status === 'correct');
-            setValidationStatus(allCorrect ? 'success' : 'checked');
-            if (allCorrect && onComplete) onComplete();
-        }
+        const updatedTargets = targets.map(target => {
+            if (!target.matchedSoundId) return { ...target, status: 'incorrect' };
+            const originalSound = exerciseData.find(d => `sound-${d.id}` === target.matchedSoundId);
+            const isCorrect = originalSound && originalSound.matchId === target.matchId;
+            return { ...target, status: isCorrect ? 'correct' : 'incorrect' };
+        });
+        setTargets(updatedTargets);
+        const allCorrect = updatedTargets.every(t => t.status === 'correct');
+        setValidationStatus(allCorrect ? 'success' : 'checked');
+        if (allCorrect && onComplete) onComplete();
     };
 
     const handleTryAgain = () => {
@@ -415,106 +351,29 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
             .sort(() => Math.random() - 0.5)
             .map(item => `sound-${item.id}`);
 
-        const slots = targets.map((t, i) => ({
-            targetId: t.id,
-            soundId: shuffledSoundIds[i],
-            isAdjusted: false
-        }));
-        setMobileSlots(slots);
-
-        const initialSounds = [...exerciseData]
-            .sort(() => Math.random() - 0.5)
-            .map(item => ({
-                id: `sound-${item.id}`,
-                matchId: item.matchId,
-                label: item.soundText,
-                audio: item.soundAudio,
-                image: item.soundImage
-            }));
-
-        setTargets(prev => prev.map(t => ({ ...t, matchedSoundId: null, status: 'idle' })));
-        setAvailableSounds(initialSounds);
+        if (isMobile) {
+            setTargets(prev => prev.map((t, i) => ({ ...t, matchedSoundId: shuffledSoundIds[i], status: 'idle' })));
+        } else {
+            const initialSounds = [...exerciseData]
+                .sort(() => Math.random() - 0.5)
+                .map(item => ({
+                    id: `sound-${item.id}`,
+                    matchId: item.matchId,
+                    label: item.soundText,
+                    audio: item.soundAudio,
+                    image: item.soundImage
+                }));
+            setTargets(prev => prev.map(t => ({ ...t, matchedSoundId: null, status: 'idle' })));
+            setAvailableSounds(initialSounds);
+        }
+        setAdjustedSoundIds(new Set());
         setValidationStatus('idle');
-        setSelectedRowId(null);
     };
 
-    const correctCount = isMobile
-        ? mobileSlots.filter(s => s.status === 'correct').length
-        : targets.filter(t => t.status === 'correct').length;
+    const correctCount = targets.filter(t => t.status === 'correct').length;
     const totalCount = exerciseData.length;
     const isDragging = activeSoundId !== null;
 
-    /* ═══════════════════════════════════ */
-    /*  Mobile Render — Side by Side      */
-    /* ═══════════════════════════════════ */
-    if (isMobile) {
-        return (
-            <div className="dnd-container dnd-mobile">
-                <p className="dnd-hint">
-                    🎧 {description || 'Tap a row to select it, then tap another row to swap the sounds.'}
-                </p>
-
-                {selectedRowId && (
-                    <div className="mobile-selection-banner">
-                        <span>🔄 Tap another row to swap</span>
-                        <button className="mobile-deselect-btn" onClick={() => setSelectedRowId(null)}>Cancel</button>
-                    </div>
-                )}
-
-                <div className="mobile-match-grid">
-                    {/* Column headers */}
-                    <div className="match-grid-header">
-                        <span>Image</span>
-                        <span>Sound</span>
-                    </div>
-
-                    {targets.map(target => {
-                        const slot = mobileSlots.find(s => s.targetId === target.id);
-                        const soundObj = slot?.soundId ? getOriginalSound(slot.soundId) : null;
-                        const status = slot?.status || 'idle';
-                        return (
-                            <MobileMatchRow
-                                key={target.id}
-                                target={target}
-                                soundObj={soundObj}
-                                isSelected={selectedRowId === target.id}
-                                onTapRow={handleTapRow}
-                                status={status}
-                                isAdjusted={slot?.isAdjusted}
-                            />
-                        );
-                    })}
-                </div>
-
-                {/* Score & Actions */}
-                <div className="dnd-actions">
-                    {validationStatus !== 'idle' && (
-                        <div className={clsx("score-display", validationStatus === 'success' && "score-success")}>
-                            <span className="score-text">
-                                Result: <strong>{correctCount} / {totalCount}</strong> correct
-                            </span>
-                            {validationStatus === 'success' && <span className="score-emoji">🎉</span>}
-                        </div>
-                    )}
-
-                    {validationStatus === 'idle' ? (
-                        <button onClick={handleCheckAnswers} className="primary-button">
-                            Check
-                        </button>
-                    ) : (
-                        <button onClick={handleTryAgain} className="primary-button try-again-button">
-                            <RotateCcw size={18} />
-                            Try Again
-                        </button>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    /* ═══════════════════════════════════ */
-    /*  Desktop Render — Drag & Drop      */
-    /* ═══════════════════════════════════ */
     return (
         <DndContext
             sensors={sensors}
@@ -522,42 +381,44 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="dnd-container">
+            <div className={clsx("dnd-container", isMobile && "dnd-mobile")}>
                 <p className="dnd-hint">
-                    🎧 {description || 'Click a sound to play it. Drag it onto the matching image.'}
+                    {isMobile
+                        ? '👆 Tap a sound to play it. Press and hold to drag and drop to swap.'
+                        : '🎧 Click a sound to play it. Drag it onto the matching image.'}
                 </p>
 
-                <div className="targets-area">
-                    {targets.map(target => {
-                        const matchedSoundObj = target.matchedSoundId ? getOriginalSound(target.matchedSoundId) : null;
-                        return (
+                {isMobile ? (
+                    /* Mobile Layout */
+                    <div className="mobile-match-grid">
+                        <div className="match-grid-header">
+                            <span>Image</span>
+                            <span>Sound</span>
+                        </div>
+                        {targets.map(target => (
+                            <MobileMatchRow
+                                key={target.id}
+                                targetItem={target}
+                                matchedSoundItem={getOriginalSound(target.matchedSoundId)}
+                                isAdjusted={adjustedSoundIds.has(target.matchedSoundId)}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    /* Desktop Layout */
+                    <div className="targets-area">
+                        {targets.map(target => (
                             <DroppableTarget
                                 key={target.id}
                                 targetItem={target}
-                                matchedSoundItem={matchedSoundObj}
+                                matchedSoundItem={getOriginalSound(target.matchedSoundId)}
                             />
-                        );
-                    })}
-                </div>
-
-                <DroppableTray isDragging={isDragging}>
-                    <div className="tray-header">
-                        <h3 className="choices-title">🔊 Available Sounds</h3>
-                        {isDragging && (
-                            <span className="tray-drop-hint">← Drop here to return</span>
-                        )}
-                    </div>
-                    <div className="choices-grid">
-                        {availableSounds.map(sound => (
-                            <DraggableSound key={sound.id} sound={sound} isMobile={false} />
                         ))}
-                        {availableSounds.length === 0 && validationStatus === 'idle' && (
-                            <div className="tray-empty-message">
-                                All sounds assigned – click &quot;Check&quot; to verify!
-                            </div>
-                        )}
                     </div>
+                )}
 
+                {/* Mobile Check Actions */}
+                {isMobile && (
                     <div className="dnd-actions">
                         {validationStatus !== 'idle' && (
                             <div className={clsx("score-display", validationStatus === 'success' && "score-success")}>
@@ -569,11 +430,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
                         )}
 
                         {validationStatus === 'idle' ? (
-                            <button
-                                onClick={handleCheckAnswers}
-                                className="primary-button"
-                                disabled={targets.every(t => !t.matchedSoundId)}
-                            >
+                            <button onClick={handleCheckAnswers} className="primary-button">
                                 Check
                             </button>
                         ) : (
@@ -583,11 +440,58 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
                             </button>
                         )}
                     </div>
-                </DroppableTray>
+                )}
+
+                {!isMobile && (
+                    <DroppableTray isDragging={isDragging}>
+                        <div className="tray-header">
+                            <h3 className="choices-title">🔊 Available Sounds</h3>
+                            {isDragging && (
+                                <span className="tray-drop-hint">← Drop here to return</span>
+                            )}
+                        </div>
+                        <div className="choices-grid">
+                            {availableSounds.map(sound => (
+                                <DraggableSound key={sound.id} sound={sound} isMobile={false} />
+                            ))}
+                            {availableSounds.length === 0 && validationStatus === 'idle' && (
+                                <div className="tray-empty-message">
+                                    All sounds assigned – click "Check" to verify!
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="dnd-actions">
+                            {validationStatus !== 'idle' && (
+                                <div className={clsx("score-display", validationStatus === 'success' && "score-success")}>
+                                    <span className="score-text">
+                                        Result: <strong>{correctCount} / {totalCount}</strong> correct
+                                    </span>
+                                    {validationStatus === 'success' && <span className="score-emoji">🎉</span>}
+                                </div>
+                            )}
+
+                            {validationStatus === 'idle' ? (
+                                <button
+                                    onClick={handleCheckAnswers}
+                                    className="primary-button"
+                                    disabled={targets.every(t => !t.matchedSoundId)}
+                                >
+                                    Check
+                                </button>
+                            ) : (
+                                <button onClick={handleTryAgain} className="primary-button try-again-button">
+                                    <RotateCcw size={18} />
+                                    Try Again
+                                </button>
+                            )}
+                        </div>
+                    </DroppableTray>
+                )}
             </div>
 
             <DragOverlay dropAnimation={{ duration: 200 }}>
-                {activeSound ? <DraggableSound sound={activeSound} isDraggingOverlay isMobile={false} /> : null}
+                {activeSound ? <DraggableSound sound={activeSound} isDraggingOverlay isMobile={isMobile} /> : null}
             </DragOverlay>
         </DndContext>
     );
