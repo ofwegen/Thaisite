@@ -141,7 +141,7 @@ function DroppableTarget({ targetItem, matchedSoundItem }) {
 }
 
 /* ─────── Mobile Match Row ─────── */
-function MobileMatchRow({ target, soundObj, isSelected, onTapRow, status }) {
+function MobileMatchRow({ target, soundObj, isSelected, onTapRow, status, isAdjusted }) {
     const [imgLoaded, setImgLoaded] = useState(false);
 
     const handleTap = () => {
@@ -189,7 +189,7 @@ function MobileMatchRow({ target, soundObj, isSelected, onTapRow, status }) {
                 isSelected && "match-sound-selected",
                 status === 'correct' && "item-correct",
                 status === 'incorrect' && "item-incorrect",
-                status === 'idle' && "item-playable"
+                status === 'idle' && (isAdjusted ? "item-adjusted" : "item-unadjusted")
             )}>
                 {soundObj ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', pointerEvents: 'none' }}>
@@ -252,7 +252,8 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
         // For mobile: pre-assign sounds randomly to targets
         const slots = initialTargets.map((t, i) => ({
             targetId: t.id,
-            soundId: shuffledSoundIds[i]
+            soundId: shuffledSoundIds[i],
+            isAdjusted: false
         }));
         setMobileSlots(slots);
 
@@ -357,8 +358,8 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
                 const idx2 = next.findIndex(s => s.targetId === targetId);
                 if (idx1 !== -1 && idx2 !== -1) {
                     const temp = next[idx1].soundId;
-                    next[idx1] = { ...next[idx1], soundId: next[idx2].soundId };
-                    next[idx2] = { ...next[idx2], soundId: temp };
+                    next[idx1] = { ...next[idx1], soundId: next[idx2].soundId, isAdjusted: true };
+                    next[idx2] = { ...next[idx2], soundId: temp, isAdjusted: true };
                 }
                 return next;
             });
@@ -416,7 +417,8 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
 
         const slots = targets.map((t, i) => ({
             targetId: t.id,
-            soundId: shuffledSoundIds[i]
+            soundId: shuffledSoundIds[i],
+            isAdjusted: false
         }));
         setMobileSlots(slots);
 
@@ -478,6 +480,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
                                 isSelected={selectedRowId === target.id}
                                 onTapRow={handleTapRow}
                                 status={status}
+                                isAdjusted={slot?.isAdjusted}
                             />
                         );
                     })}

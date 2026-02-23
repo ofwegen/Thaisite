@@ -1017,9 +1017,12 @@ body {
   }
 
   @keyframes pulseSelect {
-    0%, 100% {
+
+    0%,
+    100% {
       box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
     }
+
     50% {
       box-shadow: 0 0 0 5px rgba(124, 58, 237, 0.1);
     }
@@ -1077,9 +1080,17 @@ body {
     -webkit-user-select: none;
   }
 
-  .match-sound.item-playable {
+  .match-sound.item-unadjusted {
+    background: rgba(79, 70, 229, 0.08);
+    /* light primary */
+    border: 1px dashed rgba(79, 70, 229, 0.5);
+    color: var(--color-text-main);
+  }
+
+  .match-sound.item-adjusted {
     background: var(--color-primary);
     border: 1px solid var(--color-primary);
+    color: white;
   }
 
   .match-sound-selected {
