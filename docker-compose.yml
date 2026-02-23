@@ -2,6 +2,19 @@ services:
   thailearning:
     build: .
     container_name: thailearning
-    ports:
-      - "3000:80"
+    expose:
+      - "80"
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.thailearning.rule=Host(`thai.srv1114667.hstgr.cloud`)"
+      - "traefik.http.routers.thailearning.entrypoints=web,websecure"
+      - "traefik.http.routers.thailearning.tls=true"
+      - "traefik.http.routers.thailearning.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.thailearning.loadbalancer.server.port=80"
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true
