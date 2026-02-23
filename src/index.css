@@ -1113,6 +1113,8 @@ body {
     border: 1px solid var(--color-primary);
     color: white;
     padding: 0.4rem;
+    width: 200px;
+    height: 44px;
   }
 
   .match-sound.item-correct {

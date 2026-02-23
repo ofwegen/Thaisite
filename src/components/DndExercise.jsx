@@ -30,7 +30,7 @@ function useIsMobile(breakpoint = 640) {
 }
 
 /* ─────── Draggable Sound Chip ─────── */
-function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = false, isMobile, isAdjusted }) {
+function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = false, isMobile, isAdjusted, isActiveSource }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: sound.id,
         data: sound,
@@ -64,7 +64,7 @@ function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = 
                 isDraggingOverlay && "dragging-overlay",
                 status === 'correct' && "item-correct",
                 status === 'incorrect' && "item-incorrect",
-                status === 'idle' && (isMobile ? (isAdjusted ? "item-adjusted" : "item-unadjusted") : "item-playable")
+                status === 'idle' && (isMobile ? (isAdjusted && !isActiveSource ? "item-adjusted" : "item-unadjusted") : "item-playable")
             )}
         >
             <div
@@ -147,7 +147,7 @@ function DroppableTarget({ targetItem, matchedSoundItem }) {
 }
 
 /* ─────── Mobile Match Row (Droppable) ─────── */
-function MobileMatchRow({ targetItem, matchedSoundItem, isAdjusted }) {
+function MobileMatchRow({ targetItem, matchedSoundItem, isAdjusted, isActiveSource }) {
     const { isOver, setNodeRef } = useDroppable({ id: targetItem.id });
     const [imgLoaded, setImgLoaded] = useState(false);
 
@@ -183,6 +183,7 @@ function MobileMatchRow({ targetItem, matchedSoundItem, isAdjusted }) {
                         disabled={targetItem.status !== 'idle'}
                         isMobile={true}
                         isAdjusted={isAdjusted}
+                        isActiveSource={isActiveSource}
                     />
                 ) : (
                     <span className="drop-placeholder">
@@ -415,6 +416,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
                                 targetItem={target}
                                 matchedSoundItem={getOriginalSound(target.matchedSoundId)}
                                 isAdjusted={adjustedSoundIds.has(target.matchedSoundId)}
+                                isActiveSource={activeSoundId === target.matchedSoundId}
                             />
                         ))}
                     </div>
