@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     DndContext,
     DragOverlay,
@@ -29,8 +29,51 @@ function useIsMobile(breakpoint = 640) {
     return isMobile;
 }
 
+/* ─────── Shared Audio Player Hook ─────── */
+function useAudioPlayer(audioUrls) {
+    const cacheRef = useRef(new Map());
+    const currentRef = useRef(null);
+
+    // Preload all audio URLs into the cache
+    useEffect(() => {
+        const cache = cacheRef.current;
+        audioUrls.forEach(url => {
+            if (url && !cache.has(url)) {
+                const audio = new Audio();
+                audio.preload = 'auto';
+                audio.src = url;
+                cache.set(url, audio);
+            }
+        });
+    }, [audioUrls]);
+
+    const playSound = useCallback((url) => {
+        if (!url) return;
+
+        // Stop currently playing sound
+        if (currentRef.current) {
+            currentRef.current.pause();
+            currentRef.current.currentTime = 0;
+        }
+
+        // Get from cache or create new
+        let audio = cacheRef.current.get(url);
+        if (!audio) {
+            audio = new Audio(url);
+            audio.preload = 'auto';
+            cacheRef.current.set(url, audio);
+        }
+
+        audio.currentTime = 0;
+        currentRef.current = audio;
+        audio.play().catch(console.error);
+    }, []);
+
+    return playSound;
+}
+
 /* ─────── Draggable Sound Chip ─────── */
-function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = false, isMobile, isAdjusted, isActiveSource }) {
+function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = false, isMobile, isAdjusted, isActiveSource, onPlay }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: sound.id,
         data: sound,
@@ -42,8 +85,8 @@ function DraggableSound({ sound, isDraggingOverlay, status = 'idle', disabled = 
     } : undefined;
 
     const playAudio = () => {
-        if (sound.audio) {
-            new Audio(sound.audio).play().catch(console.error);
+        if (sound.audio && onPlay) {
+            onPlay(sound.audio);
         }
     };
 
@@ -103,7 +146,7 @@ function DroppableTray({ children, isDragging }) {
 }
 
 /* ─────── Droppable Target (Desktop) ─────── */
-function DroppableTarget({ targetItem, matchedSoundItem }) {
+function DroppableTarget({ targetItem, matchedSoundItem, onPlay }) {
     const { isOver, setNodeRef } = useDroppable({ id: targetItem.id });
     const [imgLoaded, setImgLoaded] = useState(false);
 
@@ -135,6 +178,7 @@ function DroppableTarget({ targetItem, matchedSoundItem }) {
                         status={targetItem.status}
                         disabled={targetItem.status !== 'idle'}
                         isMobile={false}
+                        onPlay={onPlay}
                     />
                 ) : (
                     <span className="drop-placeholder">
@@ -147,7 +191,7 @@ function DroppableTarget({ targetItem, matchedSoundItem }) {
 }
 
 /* ─────── Mobile Match Row (Droppable) ─────── */
-function MobileMatchRow({ targetItem, matchedSoundItem, isAdjusted, isActiveSource }) {
+function MobileMatchRow({ targetItem, matchedSoundItem, isAdjusted, isActiveSource, onPlay }) {
     const { isOver, setNodeRef } = useDroppable({ id: targetItem.id });
     const [imgLoaded, setImgLoaded] = useState(false);
 
@@ -184,6 +228,7 @@ function MobileMatchRow({ targetItem, matchedSoundItem, isAdjusted, isActiveSour
                         isMobile={true}
                         isAdjusted={isAdjusted}
                         isActiveSource={isActiveSource}
+                        onPlay={onPlay}
                     />
                 ) : (
                     <span className="drop-placeholder">
@@ -204,6 +249,10 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
     const [validationStatus, setValidationStatus] = useState('idle');
 
     const isMobile = useIsMobile();
+
+    // Extract all audio URLs for preloading
+    const audioUrls = useMemo(() => exerciseData.map(d => d.soundAudio).filter(Boolean), [exerciseData]);
+    const playSound = useAudioPlayer(audioUrls);
 
     const buildSoundObj = useCallback((soundId) => {
         const def = exerciseData.find(d => `sound-${d.id}` === soundId);
@@ -414,6 +463,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
                                 matchedSoundItem={getOriginalSound(target.matchedSoundId)}
                                 isAdjusted={adjustedSoundIds.has(target.matchedSoundId)}
                                 isActiveSource={activeSoundId === target.matchedSoundId}
+                                onPlay={playSound}
                             />
                         ))}
                     </div>
@@ -425,6 +475,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
                                 key={target.id}
                                 targetItem={target}
                                 matchedSoundItem={getOriginalSound(target.matchedSoundId)}
+                                onPlay={playSound}
                             />
                         ))}
                     </div>
@@ -465,7 +516,7 @@ export function DndExercise({ exerciseData, onReady, onComplete, description }) 
                         </div>
                         <div className="choices-grid">
                             {availableSounds.map(sound => (
-                                <DraggableSound key={sound.id} sound={sound} isMobile={false} />
+                                <DraggableSound key={sound.id} sound={sound} isMobile={false} onPlay={playSound} />
                             ))}
                             {availableSounds.length === 0 && validationStatus === 'idle' && (
                                 <div className="tray-empty-message">
